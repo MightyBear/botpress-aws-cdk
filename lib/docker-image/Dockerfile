@@ -1,4 +1,4 @@
-FROM botpress/server:v12_21_1
+FROM botpress/server:v12_31_8
 
 RUN mkdir -p /botpress/lang
 RUN wget -q -P /botpress/lang/ http://botpress-public.nyc3.digitaloceanspaces.com/embeddings/bp.en.bpe.model

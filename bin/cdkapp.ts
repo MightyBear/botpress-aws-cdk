@@ -24,22 +24,23 @@ const redisStack = new RedisStack(app, `${prefix}-Redis`, {
   vpc: vpcStack.vpc,
 });
 
-const domainsStack = new DomainsStack(app, `${prefix}-Domains`);
+// const domainsStack = new DomainsStack(app, `${prefix}-Domains`);
 
 const servicesStack = new ServicesStack(app, `${prefix}-Services`, {
-  vpc: vpcStack.vpc,
-  hostedZone: domainsStack.hostedZone,
-  certificate: domainsStack.certificate,
-  dbClusterEndpoint: dbStack.clusterEndpoint,
-  redisPort: redisStack.primaryEndpoint.port,
-  redisEndpoint: redisStack.primaryEndpoint,
-  redisSecurityGroup: redisStack.securityGroup,
-  dbClusterSecurityGroup: dbStack.securityGroup,
-  dbClusterPort: dbStack.clusterEndpoint.port,
+  dbClusterEndpointAddress:
+    "botpress-db-dbcluster224236ef-zespmmfzkczp.cluster-chfxriuztqln.ap-southeast-1.rds.amazonaws.com",
+  dbClusterPort: 3306,
+  redisEndpointAddress:
+    "bor7fndkkyp6m36-001.ol7zdz.0001.apse1.cache.amazonaws.com",
+  redisPort: 6379,
+  redisSecurityGroupId: "sg-07090f94f4e96ae4b", // Replace with the actual Redis security group ID
+  dbClusterSecurityGroupId: "sg-01915bd1a75e30932", // Replace with the actual DB cluster security group ID
+  hostedZoneId: "Z31RNQYBW7G7ZV", // Use your actual hosted zone ID
+  hostedZoneName: "mightybeargames.com", // Use your actual hosted zone name
 });
 
-new WAFStack(app, `${prefix}-WAF`, {
-  loadBalancer: servicesStack.loadBalancer,
-});
+// new WAFStack(app, `${prefix}-WAF`, {
+//   loadBalancer: servicesStack.loadBalancer,
+// });
 
-app.synth();
+// app.synth();
