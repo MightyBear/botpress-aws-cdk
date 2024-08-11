@@ -1,12 +1,30 @@
-import * as cdk from "@aws-cdk/core";
-import ec2 = require("@aws-cdk/aws-ec2");
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 
 export class VpcStack extends cdk.Stack {
   public readonly vpc: ec2.IVpc;
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const vpc = new ec2.Vpc(this, "Vpc", { maxAzs: 2, natGateways: 1 }); // Cost-saving measures, increase those numbers for better redundancy
+    const vpc = new ec2.Vpc(this, "Vpc", {
+      maxAzs: 2,
+      natGateways: 1,
+      subnetConfiguration: [
+        {
+          cidrMask: 24,
+          name: "Public",
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+        {
+          cidrMask: 24,
+          name: "Private",
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+        },
+      ],
+    });
+
     this.vpc = vpc;
   }
 }

@@ -1,14 +1,17 @@
-import * as cdk from "@aws-cdk/core";
-import secretsmanager = require("@aws-cdk/aws-secretsmanager");
+import { Construct } from "constructs";
+import * as cdk from "aws-cdk-lib";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 
-export default class CfnParameterSecret extends cdk.Construct {
+export default class CfnParameterSecret extends Construct {
   public readonly secret: secretsmanager.Secret;
-  constructor(scope: cdk.Construct, id: string, parameter: cdk.CfnParameter) {
+
+  constructor(scope: Construct, id: string, parameter: cdk.CfnParameter) {
     super(scope, id);
 
-    this.secret = new secretsmanager.Secret(this, `${id}-Secret`);
-    const cfnSecret = this.secret.node.defaultChild as secretsmanager.CfnSecret;
-    cfnSecret.generateSecretString = undefined;
-    cfnSecret.secretString = parameter.value.toString();
+    this.secret = new secretsmanager.Secret(this, `${id}-Secret`, {
+      secretStringValue: cdk.SecretValue.unsafePlainText(
+        parameter.valueAsString
+      ),
+    });
   }
 }

@@ -1,15 +1,16 @@
-import * as cdk from "@aws-cdk/core";
-import ecs = require("@aws-cdk/aws-ecs");
-import rds = require("@aws-cdk/aws-rds");
-import logs = require("@aws-cdk/aws-logs");
-import ec2 = require("@aws-cdk/aws-ec2");
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as ecs from "aws-cdk-lib/aws-ecs";
+import * as rds from "aws-cdk-lib/aws-rds";
+import * as logs from "aws-cdk-lib/aws-logs";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { PrimaryEndpoint as RedisPrimaryEndpoint } from "./redis-stack";
-import elbv2 = require("@aws-cdk/aws-elasticloadbalancingv2");
-import route53Targets = require("@aws-cdk/aws-route53-targets");
-import route53 = require("@aws-cdk/aws-route53");
-import acm = require("@aws-cdk/aws-certificatemanager");
-import cloudmap = require("@aws-cdk/aws-servicediscovery");
-import path = require("path");
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import * as route53Targets from "aws-cdk-lib/aws-route53-targets";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as cloudmap from "aws-cdk-lib/aws-servicediscovery";
+import * as path from "path";
 import CfnParameterSecret from "./constructs/CfnParameterSecret";
 import DucklingService from "./constructs/DucklingService";
 import LangServerService from "./constructs/LangServerService";
@@ -28,7 +29,8 @@ export interface ServicesStackProps extends cdk.StackProps {
 
 export class ServicesStack extends cdk.Stack {
   public readonly loadBalancer: elbv2.IApplicationLoadBalancer;
-  constructor(scope: cdk.Construct, id: string, props: ServicesStackProps) {
+
+  constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
 
     const {
@@ -84,17 +86,11 @@ export class ServicesStack extends cdk.Stack {
     dbClusterSecurityGroup.addIngressRule(
       securityGroup,
       ec2.Port.tcp(dbClusterPort),
-      "Postgresql access",
-      true
+      "Postgresql access"
     );
 
     // Allow outgoing connections to Redis cluster
-    redisSecurityGroup.addIngressRule(
-      securityGroup,
-      redisPort,
-      "Redis access",
-      true
-    );
+    redisSecurityGroup.addIngressRule(securityGroup, redisPort, "Redis access");
 
     const loadBalancer = new elbv2.ApplicationLoadBalancer(this, "LB", {
       vpc: cluster.vpc,
@@ -106,10 +102,12 @@ export class ServicesStack extends cdk.Stack {
       port: 80,
     });
 
-    listener80.addRedirectResponse("httpsRedirect", {
-      protocol: elbv2.Protocol.HTTPS,
-      port: "443",
-      statusCode: "HTTP_301",
+    listener80.addAction("httpsRedirect", {
+      action: elbv2.ListenerAction.redirect({
+        protocol: "HTTPS",
+        port: "443",
+        permanent: true,
+      }),
     });
 
     const listener443 = loadBalancer.addListener("Listener", {
@@ -182,16 +180,14 @@ export class ServicesStack extends cdk.Stack {
     dbClusterSecurityGroup.addIngressRule(
       webSecurityGroup,
       ec2.Port.tcp(dbClusterPort),
-      "Postgresql access",
-      true
+      "Postgresql access"
     );
 
     // Allow outgoing connections to Redis cluster
     redisSecurityGroup.addIngressRule(
       webSecurityGroup,
       redisPort,
-      "Redis access",
-      true
+      "Redis access"
     );
 
     langServer.allowIngress(webSecurityGroup);
@@ -201,7 +197,7 @@ export class ServicesStack extends cdk.Stack {
       cluster,
       taskDefinition: webTaskDef,
       assignPublicIp: false,
-      securityGroup: webSecurityGroup,
+      securityGroups: [webSecurityGroup],
       enableECSManagedTags: true,
       propagateTags: ecs.PropagatedTagSource.SERVICE,
       desiredCount: 2,
@@ -209,6 +205,7 @@ export class ServicesStack extends cdk.Stack {
 
     listener443.addTargets("ECS", {
       port: 80,
+      targets: [webService],
       healthCheck: {
         path: "/status",
         interval: cdk.Duration.seconds(60),
@@ -216,7 +213,6 @@ export class ServicesStack extends cdk.Stack {
         timeout: cdk.Duration.seconds(10),
         unhealthyThresholdCount: 10,
       },
-      targets: [webService],
       stickinessCookieDuration: cdk.Duration.hours(1),
     });
 

@@ -1,9 +1,10 @@
-import * as cdk from "@aws-cdk/core";
-import ec2 = require("@aws-cdk/aws-ec2");
-import rds = require("@aws-cdk/aws-rds");
-import secretsmanager = require("@aws-cdk/aws-secretsmanager");
-import iam = require("@aws-cdk/aws-iam");
-import kms = require("@aws-cdk/aws-kms");
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as rds from "aws-cdk-lib/aws-rds";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as iam from "aws-cdk-lib/aws-iam";
+import * as kms from "aws-cdk-lib/aws-kms";
 
 export interface DatabaseStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
@@ -15,7 +16,7 @@ export class DatabaseStack extends cdk.Stack {
   public readonly securityGroup: ec2.SecurityGroup;
   public readonly masterUsername = "master";
 
-  constructor(scope: cdk.Construct, id: string, props: DatabaseStackProps) {
+  constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
 
     const { vpc } = props;
@@ -35,14 +36,17 @@ export class DatabaseStack extends cdk.Stack {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
         version: rds.AuroraPostgresEngineVersion.VER_12_4,
       }),
-      credentials: {
-        username: this.masterUsername,
-        password: dbPassword.secretValue,
-      },
+      credentials: rds.Credentials.fromPassword(
+        this.masterUsername,
+        dbPassword.secretValue
+      ),
       instanceProps: {
         vpc,
-        instanceType: new ec2.InstanceType("r5.large"),
-        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE },
+        instanceType: ec2.InstanceType.of(
+          ec2.InstanceClass.R5,
+          ec2.InstanceSize.LARGE
+        ),
+        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
         securityGroups: [securityGroup],
       },
       instances: 1,
@@ -57,7 +61,7 @@ export class DatabaseStack extends cdk.Stack {
     this.securityGroup = securityGroup;
 
     const bastionRole = new iam.Role(this, "BastionRole", {
-      assumedBy: new iam.ServicePrincipal("ec2"),
+      assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
     });
 
     // Enables instances to use AWS SSM
@@ -80,10 +84,11 @@ export class DatabaseStack extends cdk.Stack {
 
     const bastionInstance = new ec2.Instance(this, "BastionInstance", {
       vpc,
-      instanceType: new ec2.InstanceType("t2.micro"),
-      machineImage: ec2.MachineImage.latestAmazonLinux({
-        generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
-      }),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.T2,
+        ec2.InstanceSize.MICRO
+      ),
+      machineImage: ec2.MachineImage.latestAmazonLinux2(),
       securityGroup: bastionSecurityGroup,
       userData,
       role: bastionRole,

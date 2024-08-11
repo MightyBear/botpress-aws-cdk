@@ -1,23 +1,24 @@
-import * as cdk from "@aws-cdk/core";
-import ecs = require("@aws-cdk/aws-ecs");
-import logs = require("@aws-cdk/aws-logs");
-import ec2 = require("@aws-cdk/aws-ec2");
-import cloudmap = require("@aws-cdk/aws-servicediscovery");
-import path = require("path");
+import { Construct } from "constructs";
+import * as cdk from "aws-cdk-lib";
+import * as ecs from "aws-cdk-lib/aws-ecs";
+import * as logs from "aws-cdk-lib/aws-logs";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as cloudmap from "aws-cdk-lib/aws-servicediscovery";
+import * as path from "path";
 
 export interface LangServerServiceProps {
-  projectName: String;
+  projectName: string;
   vpc: ec2.IVpc;
   cluster: ecs.Cluster;
   dnsNamespace: cloudmap.INamespace;
   domainName: string;
 }
 
-export default class LangServerService extends cdk.Construct {
+export default class LangServerService extends Construct {
   public readonly securityGroup: ec2.ISecurityGroup;
   public readonly port = 3100;
 
-  constructor(scope: cdk.Construct, id: string, props: LangServerServiceProps) {
+  constructor(scope: Construct, id: string, props: LangServerServiceProps) {
     super(scope, id);
 
     const { projectName, vpc, cluster, dnsNamespace, domainName } = props;
@@ -33,7 +34,7 @@ export default class LangServerService extends cdk.Construct {
       cpu: 512,
     });
 
-    taskDef.addContainer("lang", {
+    const container = taskDef.addContainer("lang", {
       image: image,
       entryPoint: ["/bin/sh", "-c"],
       command: [
@@ -58,6 +59,11 @@ export default class LangServerService extends cdk.Construct {
       }),
     });
 
+    container.addPortMappings({
+      containerPort: this.port,
+      name: "lang", // This name should match the portMappingName in serviceConnectConfiguration
+    });
+
     const securityGroup = new ec2.SecurityGroup(this, "SecurityGroup", {
       vpc,
     });
@@ -67,13 +73,19 @@ export default class LangServerService extends cdk.Construct {
       cluster,
       taskDefinition: taskDef,
       assignPublicIp: false,
-      securityGroup: securityGroup,
-      enableECSManagedTags: true,
+      securityGroups: [securityGroup],
+      enableExecuteCommand: true,
       propagateTags: ecs.PropagatedTagSource.SERVICE,
       desiredCount: 1,
-      cloudMapOptions: {
-        cloudMapNamespace: dnsNamespace,
-        name: subdomain,
+      serviceConnectConfiguration: {
+        namespace: dnsNamespace.namespaceName,
+        services: [
+          {
+            portMappingName: "lang",
+            dnsName: subdomain,
+            port: this.port,
+          },
+        ],
       },
     });
   }

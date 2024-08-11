@@ -1,30 +1,31 @@
-import * as cdk from "@aws-cdk/core";
-import acm = require("@aws-cdk/aws-certificatemanager");
-import route53 = require("@aws-cdk/aws-route53");
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as route53 from "aws-cdk-lib/aws-route53";
 
 export class DomainsStack extends cdk.Stack {
   public readonly hostedZone: route53.IHostedZone;
-  public readonly certificate: acm.Certificate;
+  public readonly certificate: acm.ICertificate;
 
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const domainNameParam = new cdk.CfnParameter(this, "DomainName", {
       type: "String",
       noEcho: true,
     });
-    const domainName = domainNameParam.value.toString();
+
+    const domainName = domainNameParam.valueAsString;
 
     const hostedZone = new route53.HostedZone(this, "HostedZone", {
       zoneName: domainName,
     });
     this.hostedZone = hostedZone;
 
-    this.certificate = new acm.DnsValidatedCertificate(this, "Certificate", {
-      hostedZone,
-      domainName,
+    this.certificate = new acm.Certificate(this, "Certificate", {
+      domainName: domainName,
       subjectAlternativeNames: [`*.${domainName}`],
-      validationMethod: acm.ValidationMethod.DNS,
+      validation: acm.CertificateValidation.fromDns(hostedZone),
     });
   }
 }

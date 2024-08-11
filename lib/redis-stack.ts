@@ -1,6 +1,7 @@
-import * as cdk from "@aws-cdk/core";
-import ec2 = require("@aws-cdk/aws-ec2");
-import elasticache = require("@aws-cdk/aws-elasticache");
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as elasticache from "aws-cdk-lib/aws-elasticache";
 
 export interface PrimaryEndpoint {
   address: string;
@@ -17,7 +18,7 @@ export class RedisStack extends cdk.Stack {
   public readonly securityGroup: ec2.SecurityGroup;
   public readonly primaryEndpoint: PrimaryEndpoint;
 
-  constructor(scope: cdk.Construct, id: string, props: RedisStackProps) {
+  constructor(scope: Construct, id: string, props: RedisStackProps) {
     super(scope, id, props);
 
     const { vpc } = props;
@@ -50,6 +51,7 @@ export class RedisStack extends cdk.Stack {
         atRestEncryptionEnabled: true,
       }
     );
+
     this.primaryEndpoint = {
       address: replicationGroup.attrPrimaryEndPointAddress,
       port: ec2.Port.tcp(RedisStack.portNumber),

@@ -1,31 +1,32 @@
-import * as cdk from "@aws-cdk/core";
-import elbv2 = require("@aws-cdk/aws-elasticloadbalancingv2");
-import waf = require("@aws-cdk/aws-wafv2");
-import firehose = require("@aws-cdk/aws-kinesisfirehose");
-import s3 = require("@aws-cdk/aws-s3");
-import iam = require("@aws-cdk/aws-iam");
+import { Stack, StackProps, RemovalPolicy } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import { IApplicationLoadBalancer } from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import { CfnWebACL, CfnWebACLAssociation } from "aws-cdk-lib/aws-wafv2";
+import { CfnDeliveryStream } from "aws-cdk-lib/aws-kinesisfirehose";
+import { Bucket } from "aws-cdk-lib/aws-s3";
+import { Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 
-export interface WAFStackProps extends cdk.StackProps {
-  loadBalancer: elbv2.IApplicationLoadBalancer;
+export interface WAFStackProps extends StackProps {
+  loadBalancer: IApplicationLoadBalancer;
 }
 
-export class WAFStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props: WAFStackProps) {
+export class WAFStack extends Stack {
+  constructor(scope: Construct, id: string, props: WAFStackProps) {
     super(scope, id, props);
 
     const { loadBalancer } = props;
 
-    const wafLoggingBucket = new s3.Bucket(this, "WAFLoggingBucket", {
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    const wafLoggingBucket = new Bucket(this, "WAFLoggingBucket", {
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    const deliveryStreamRole = new iam.Role(this, "DeliveryStreamRole", {
-      assumedBy: new iam.ServicePrincipal("firehose.amazonaws.com"),
+    const deliveryStreamRole = new Role(this, "DeliveryStreamRole", {
+      assumedBy: new ServicePrincipal("firehose.amazonaws.com"),
     });
 
     wafLoggingBucket.grantReadWrite(deliveryStreamRole);
 
-    new firehose.CfnDeliveryStream(this, "LoggingDeliveryStream", {
+    new CfnDeliveryStream(this, "LoggingDeliveryStream", {
       deliveryStreamName: "aws-waf-logs",
       extendedS3DestinationConfiguration: {
         bucketArn: wafLoggingBucket.bucketArn,
@@ -36,7 +37,7 @@ export class WAFStack extends cdk.Stack {
     });
 
     // Based on this example: https://docs.aws.amazon.com/waf/latest/developerguide/waf-using-managed-rule-groups.html
-    const acl = new waf.CfnWebACL(this, "WebAcl", {
+    const acl = new CfnWebACL(this, "WebAcl", {
       defaultAction: { allow: {} },
       scope: "REGIONAL",
       visibilityConfig: {
@@ -91,7 +92,8 @@ export class WAFStack extends cdk.Stack {
         },
       ],
     });
-    new waf.CfnWebACLAssociation(this, "AclAssociation", {
+
+    new CfnWebACLAssociation(this, "AclAssociation", {
       webAclArn: acl.attrArn,
       resourceArn: loadBalancer.loadBalancerArn,
     });
